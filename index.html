@@ -132,6 +132,7 @@
   <div class="section">
     <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
       <span>Historial de semanas</span>
+      <button class="btn btn-sm" onclick="exportExcel()" style="color:#1D9E75; border-color:#1D9E75;">📊 Exportar Excel</button>
       <button class="btn btn-sm btn-danger" onclick="clearHistory()">Borrar todo</button>
     </div>
     <div id="historyList"></div>
@@ -413,6 +414,36 @@
     updateMetrics();
     updatePreview();
     scheduleSave();
+  }
+
+
+  function exportExcel() {
+    const rows = [];
+    rows.push(["\uD83C\uDF1F MI HUCHA DE AHORROS \uD83C\uDF1F"]);
+    rows.push([]);
+    rows.push(["\uD83D\uDCB0 Paga base semanal:", config.base + " \u20AC"]);
+    rows.push(["\uD83D\uDCC8 Inter\u00E9s mensual:", config.interest + "%"]);
+    rows.push([]);
+    const totalReceived = history.reduce(function(s,w){return s+w.total;},0);
+    const totalInterest = history.reduce(function(s,w){return s+(w.interest||0);},0);
+    rows.push(["\uD83C\uDFE6 Lo que tengo en la hucha:", fmt(savings) + " \u20AC"]);
+    rows.push(["\uD83D\uDCEC Total recibido:", fmt(totalReceived) + " \u20AC"]);
+    rows.push(["\uD83C\uDF89 Inter\u00E9s ganado:", fmt(totalInterest) + " \u20AC"]);
+    rows.push([]);
+    rows.push(["\uD83D\uDCC5 MI HISTORIAL SEMANAL"]);
+    rows.push(["Semana", "Lo que gan\u00E9 \uD83D\uDCB5", "Lo que guard\u00E9 \uD83C\uDFE6", "Inter\u00E9s \uD83C\uDF89", "Conceptos"]);
+    var hist = history.slice().reverse();
+    hist.forEach(function(w) {
+      var conceptos = w.concepts.map(function(c){return (c.type==="plus"?"+":"-")+fmt(c.amount)+" "+c.name;}).join(", ");
+      rows.push([w.label, fmt(w.total)+" \u20AC", w.saved>0?fmt(w.saved)+" \u20AC":"-", w.interest>0.001?"+"+fmt(w.interest)+" \u20AC":"-", conceptos||"-"]);
+    });
+    if (!history.length) rows.push(["A\u00FAn no hay semanas registradas"]);
+    var csv = rows.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");
+    var blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href=url; a.download="mi_hucha.csv"; a.click();
+    URL.revokeObjectURL(url);
   }
 
   function fmt(n) {

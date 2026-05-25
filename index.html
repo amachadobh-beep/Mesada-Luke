@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gestión de Pagas Semanales</title>
+<title>Mesada Luke</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -26,17 +26,21 @@
   .btn-primary { background: #185FA5; color: white; border-color: #185FA5; }
   .btn-primary:hover { background: #0C447C; }
   .btn-sm { padding: 4px 10px; font-size: 12px; }
-  .btn-danger { color: #A32D2D; }
+  .btn-danger { color: #A32D2D; border-color: #ccc; }
   .btn-danger:hover { background: #FCEBEB; }
   .badge-plus { background: #EAF3DE; color: #3B6D11; display:inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 500; }
   .badge-minus { background: #FCEBEB; color: #A32D2D; display:inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 500; }
   .inline-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .label-sm { font-size: 13px; color: #555; white-space: nowrap; }
-  .concept-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .concept-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; padding: 8px; background: #fafaf8; border-radius: 8px; border: 1px solid #e8e8e5; }
+  .concept-info { flex: 1; min-width: 0; }
+  .concept-name { font-size: 14px; font-weight: 500; }
+  .concept-desc { font-size: 12px; color: #888; margin-top: 2px; }
   .week-concept { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
   .checkbox-label { display: flex; align-items: center; gap: 6px; cursor: pointer; flex: 1; }
+  .concept-label-desc { font-size: 11px; color: #aaa; margin-left: 4px; }
   .divider { border: none; border-top: 1px solid #e8e8e5; margin: 1rem 0; }
-  .history-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f0ede4; font-size: 13px; }
+  .history-row { display: flex; align-items: flex-start; gap: 8px; padding: 10px 0; border-bottom: 1px solid #f0ede4; font-size: 13px; }
   .history-row:last-child { border-bottom: none; }
   .history-week { font-weight: 500; min-width: 80px; }
   .history-detail { flex: 1; color: #666; font-size: 12px; line-height: 1.8; }
@@ -52,21 +56,22 @@
   .dot.green { background: #1D9E75; }
   .dot.amber { background: #BA7517; }
   .dot.red { background: #A32D2D; }
+  .edit-row { display: flex; flex-direction: column; gap: 6px; padding: 10px; background: #f0f4fb; border-radius: 8px; border: 1px solid #b5d4f4; margin-bottom: 8px; }
+  .edit-row .inline-row { flex-wrap: wrap; }
+  .withdraw-box { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; padding: 10px; background: #fafaf8; border-radius: 8px; border: 1px solid #e8e8e5; }
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
 <div id="loginSection">
-  <h1>💰 Pagas semanales</h1>
+  <h1>💰 Mesada Luke</h1>
   <p>Inicia sesión con Google para sincronizar los datos<br>en todos los dispositivos.</p>
   <div id="googleBtn"></div>
 </div>
 
-<!-- APP -->
 <div id="appSection">
   <div class="sync-bar">
-    <span>💰 <strong>Pagas semanales</strong></span>
+    <span>💰 <strong>Mesada Luke</strong></span>
     <span class="sync-status">
       <span class="dot" id="syncDot"></span>
       <span id="syncText">—</span>
@@ -75,6 +80,7 @@
     </span>
   </div>
 
+  <!-- CONFIG -->
   <div class="section">
     <div class="section-title">Configuración</div>
     <div class="inline-row" style="margin-bottom:12px;">
@@ -85,19 +91,29 @@
       <span class="label-sm">% / mes (cada 4 semanas)</span>
     </div>
     <hr class="divider">
-    <div class="section-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><span>Conceptos que suman o restan</span><button class="btn btn-sm" onclick="exportPDF()" style="color:#185FA5; border-color:#185FA5;">📄 Imprimir tabla</button></div>
+    <div class="section-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <span>Conceptos que suman o restan</span>
+      <button class="btn btn-sm" onclick="exportPDF()" style="color:#185FA5; border-color:#185FA5;">📄 Imprimir tabla</button>
+    </div>
     <div id="conceptsList"></div>
-    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-      <input type="text" id="newConceptName" placeholder="Nombre (ej: ordenar cuarto)" style="flex:1; min-width:140px;">
-      <input type="number" id="newConceptAmt" placeholder="€" step="0.5" style="width:70px;">
-      <select id="newConceptType">
-        <option value="plus">+ Suma</option>
-        <option value="minus">− Resta</option>
-      </select>
-      <button class="btn btn-sm" onclick="addConcept()">Añadir</button>
+    <!-- Añadir nuevo concepto -->
+    <div style="margin-top:10px; padding:10px; background:#fafaf8; border-radius:8px; border:1px solid #e8e8e5;">
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+        <input type="text" id="newConceptName" placeholder="Nombre corto (ej: Cole)" style="width:130px;">
+        <input type="number" id="newConceptAmt" placeholder="€" min="0.01" step="0.5" style="width:70px;">
+        <select id="newConceptType">
+          <option value="plus">+ Suma</option>
+          <option value="minus">− Resta</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input type="text" id="newConceptDesc" placeholder="Descripción (opcional, ej: Preparar mochila el día anterior)" style="flex:1; min-width:200px;">
+        <button class="btn btn-sm btn-primary" onclick="addConcept()">Añadir</button>
+      </div>
     </div>
   </div>
 
+  <!-- CERRAR SEMANA -->
   <div class="section">
     <div class="section-title">Cerrar semana</div>
     <div class="inline-row" style="margin-bottom:12px;">
@@ -114,6 +130,7 @@
     <button class="btn btn-primary" onclick="closeWeek()">Cerrar semana ✓</button>
   </div>
 
+  <!-- MÉTRICAS -->
   <div class="metrics">
     <div class="metric">
       <div class="metric-label">Total recibido</div>
@@ -129,63 +146,60 @@
     </div>
   </div>
 
+  <!-- RETIRAR DE HUCHA -->
+  <div class="section">
+    <div class="section-title">Retirar de la hucha</div>
+    <div class="withdraw-box">
+      <span class="label-sm">Quiero sacar</span>
+      <input type="number" id="withdrawAmount" placeholder="0" min="0" step="0.5" style="width:80px;">
+      <span class="label-sm">€</span>
+      <input type="text" id="withdrawReason" placeholder="¿Para qué? (ej: comprar un libro)" style="flex:1; min-width:150px;">
+      <button class="btn btn-sm btn-danger" onclick="withdrawSavings()">Retirar</button>
+    </div>
+  </div>
+
+  <!-- HISTORIAL -->
   <div class="section">
     <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
       <span>Historial de semanas</span>
-      <button class="btn btn-sm" onclick="exportExcel()" style="color:#1D9E75; border-color:#1D9E75;">📊 Exportar Excel</button>
-      <button class="btn btn-sm btn-danger" onclick="clearHistory()">Borrar todo</button>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-sm" onclick="exportExcel()" style="color:#1D9E75; border-color:#1D9E75;">📊 Exportar Excel</button>
+        <button class="btn btn-sm btn-danger" onclick="clearHistory()">Borrar todo</button>
+      </div>
     </div>
     <div id="historyList"></div>
   </div>
 </div>
 
 <script>
-  const CLIENT_ID = '275995370423-hsd767fov6ate7h0kdcjeo4k1r4blged.apps.googleusercontent.com';
-  const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
-  const FILE_NAME = 'pagas_data.json';
+  var CLIENT_ID = '275995370423-hsd767fov6ate7h0kdcjeo4k1r4blged.apps.googleusercontent.com';
+  var SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
+  var FILE_NAME = 'pagas_data.json';
 
-  let accessToken = null;
-  let fileId = null;
-  let config = { base: 5, interest: 10, concepts: [] };
-  let history = [];
-  let savings = 0;
-  let saveTimeout = null;
+  var accessToken = null;
+  var fileId = null;
+  var config = { base: 5, interest: 10, concepts: [] };
+  var history = [];
+  var savings = 0;
+  var saveTimeout = null;
 
-  // ── AUTH ──────────────────────────────────────────────
   window.onload = function() {
-    google.accounts.id.initialize({
-      client_id: CLIENT_ID,
-      callback: handleCredential,
-      auto_select: true
-    });
-    google.accounts.id.renderButton(document.getElementById('googleBtn'), {
-      theme: 'outline', size: 'large', text: 'signin_with', locale: 'es'
-    });
-    // Try silent token first
+    google.accounts.id.initialize({ client_id: CLIENT_ID, callback: handleCredential, auto_select: true });
+    google.accounts.id.renderButton(document.getElementById('googleBtn'), { theme: 'outline', size: 'large', text: 'signin_with', locale: 'es' });
     tryTokenClient();
   };
 
   function tryTokenClient() {
-    const tc = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      prompt: '',
-      callback: (resp) => {
-        if (resp.access_token) { accessToken = resp.access_token; showApp(); loadFromDrive(); }
-      }
-    });
+    var tc = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, prompt: '', callback: function(resp) {
+      if (resp.access_token) { accessToken = resp.access_token; showApp(); loadFromDrive(); }
+    }});
     tc.requestAccessToken({ prompt: '' });
   }
 
   function handleCredential(response) {
-    // After ID login, get access token for Drive
-    const tc = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      callback: (resp) => {
-        if (resp.access_token) { accessToken = resp.access_token; showApp(); loadFromDrive(); }
-      }
-    });
+    var tc = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, callback: function(resp) {
+      if (resp.access_token) { accessToken = resp.access_token; showApp(); loadFromDrive(); }
+    }});
     tc.requestAccessToken({ prompt: '' });
   }
 
@@ -201,80 +215,47 @@
     document.getElementById('appSection').style.display = 'none';
   }
 
-  // ── DRIVE ─────────────────────────────────────────────
   function setSyncStatus(state, text) {
-    const dot = document.getElementById('syncDot');
-    const txt = document.getElementById('syncText');
-    dot.className = 'dot ' + state;
-    txt.textContent = text;
+    document.getElementById('syncDot').className = 'dot ' + state;
+    document.getElementById('syncText').textContent = text;
   }
 
   async function loadFromDrive() {
     setSyncStatus('amber', 'Cargando...');
     try {
-      const res = await fetch(
-        'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)&q=name="' + FILE_NAME + '"',
-        { headers: { Authorization: 'Bearer ' + accessToken } }
-      );
-      const data = await res.json();
+      var res = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)&q=name="' + FILE_NAME + '"', { headers: { Authorization: 'Bearer ' + accessToken } });
+      var data = await res.json();
       if (data.files && data.files.length > 0) {
         fileId = data.files[0].id;
-        const content = await fetch(
-          'https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media',
-          { headers: { Authorization: 'Bearer ' + accessToken } }
-        );
-        const json = await content.json();
+        var content = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + accessToken } });
+        var json = await content.json();
         config = json.config || config;
         history = json.history || [];
         savings = json.savings || 0;
       }
       setSyncStatus('green', 'Sincronizado');
-    } catch(e) {
-      setSyncStatus('red', 'Error al cargar');
-    }
-    applyConfig();
-    renderConcepts();
-    renderWeekChecks();
-    renderHistory();
-    updateMetrics();
+    } catch(e) { setSyncStatus('red', 'Error al cargar'); }
+    applyConfig(); renderConcepts(); renderWeekChecks(); renderHistory(); updateMetrics();
   }
 
   async function saveToDrive() {
     setSyncStatus('amber', 'Guardando...');
-    const body = JSON.stringify({ config, history, savings });
+    var body = JSON.stringify({ config: config, history: history, savings: savings });
     try {
       if (fileId) {
-        await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
-          method: 'PATCH',
-          headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-          body
-        });
+        await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', { method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' }, body: body });
       } else {
-        const meta = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
-          method: 'POST',
-          headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: FILE_NAME, parents: ['appDataFolder'] })
-        });
-        const metaJson = await meta.json();
+        var meta = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', { method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: FILE_NAME, parents: ['appDataFolder'] }) });
+        var metaJson = await meta.json();
         fileId = metaJson.id;
-        await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
-          method: 'PATCH',
-          headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-          body
-        });
+        await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', { method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' }, body: body });
       }
       setSyncStatus('green', 'Sincronizado');
-    } catch(e) {
-      setSyncStatus('red', 'Error al guardar');
-    }
+    } catch(e) { setSyncStatus('red', 'Error al guardar'); }
   }
 
-  function scheduleSave() {
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(saveToDrive, 1000);
-  }
+  function scheduleSave() { clearTimeout(saveTimeout); saveTimeout = setTimeout(saveToDrive, 1000); }
 
-  // ── APP LOGIC ─────────────────────────────────────────
   function applyConfig() {
     document.getElementById('baseAllowance').value = config.base;
     document.getElementById('interestRate').value = config.interest;
@@ -283,60 +264,83 @@
   function saveConfig() {
     config.base = parseFloat(document.getElementById('baseAllowance').value) || 0;
     config.interest = parseFloat(document.getElementById('interestRate').value) || 0;
-    renderWeekChecks();
-    updatePreview();
-    scheduleSave();
+    renderWeekChecks(); updatePreview(); scheduleSave();
   }
 
   function renderConcepts() {
-    const el = document.getElementById('conceptsList');
-    if (!config.concepts.length) { el.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:0.5rem;">Sin conceptos aún. Añade tareas, comportamiento, etc.</div>'; return; }
-    el.innerHTML = config.concepts.map((c, i) => `
-      <div class="concept-row">
-        <span class="${c.type==='plus'?'badge-plus':'badge-minus'}">${c.type==='plus'?'+':'−'} ${fmt(c.amount)} €</span>
-        <span style="flex:1; font-size:14px;">${c.name}</span>
-        <button class="btn btn-sm btn-danger" onclick="removeConcept(${i})">✕</button>
-      </div>`).join('');
+    var el = document.getElementById('conceptsList');
+    if (!config.concepts.length) { el.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:0.5rem;">Sin conceptos aún.</div>'; return; }
+    el.innerHTML = config.concepts.map(function(c, i) {
+      if (c._editing) {
+        return '<div class="edit-row" id="editrow_' + i + '">' +
+          '<div class="inline-row">' +
+          '<input type="text" id="ename_' + i + '" value="' + esc(c.name) + '" placeholder="Nombre corto" style="width:130px;">' +
+          '<input type="number" id="eamt_' + i + '" value="' + c.amount + '" step="0.5" style="width:70px;">' +
+          '<select id="etype_' + i + '"><option value="plus"' + (c.type==='plus'?' selected':'') + '>+ Suma</option><option value="minus"' + (c.type==='minus'?' selected':'') + '>− Resta</option></select>' +
+          '</div>' +
+          '<div class="inline-row">' +
+          '<input type="text" id="edesc_' + i + '" value="' + esc(c.desc||'') + '" placeholder="Descripción (opcional)" style="flex:1; min-width:200px;">' +
+          '<button class="btn btn-sm btn-primary" onclick="saveEdit(' + i + ')">Guardar</button>' +
+          '<button class="btn btn-sm" onclick="cancelEdit(' + i + ')">Cancelar</button>' +
+          '</div></div>';
+      }
+      return '<div class="concept-row">' +
+        '<span class="' + (c.type==='plus'?'badge-plus':'badge-minus') + '">' + (c.type==='plus'?'+':'−') + ' ' + fmt(c.amount) + ' €</span>' +
+        '<div class="concept-info"><div class="concept-name">' + esc(c.name) + '</div>' + (c.desc ? '<div class="concept-desc">' + esc(c.desc) + '</div>' : '') + '</div>' +
+        '<button class="btn btn-sm" onclick="startEdit(' + i + ')" style="font-size:11px;">✏️</button>' +
+        '<button class="btn btn-sm btn-danger" onclick="removeConcept(' + i + ')" style="font-size:11px;">✕</button>' +
+        '</div>';
+    }).join('');
+  }
+
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function startEdit(i) { config.concepts[i]._editing = true; renderConcepts(); }
+  function cancelEdit(i) { delete config.concepts[i]._editing; renderConcepts(); }
+  function saveEdit(i) {
+    var name = document.getElementById('ename_' + i).value.trim();
+    var amt = parseFloat(document.getElementById('eamt_' + i).value);
+    var type = document.getElementById('etype_' + i).value;
+    var desc = document.getElementById('edesc_' + i).value.trim();
+    if (!name || isNaN(amt) || amt <= 0) { alert('El valor debe ser mayor que 0.'); return; }
+    config.concepts[i] = { name: name, amount: amt, type: type, desc: desc };
+    renderConcepts(); renderWeekChecks(); scheduleSave();
   }
 
   function addConcept() {
-    const name = document.getElementById('newConceptName').value.trim();
-    const amt = parseFloat(document.getElementById('newConceptAmt').value);
-    const type = document.getElementById('newConceptType').value;
-    if (!name || isNaN(amt) || amt <= 0) return;
-    config.concepts.push({ name, amount: amt, type });
+    var name = document.getElementById('newConceptName').value.trim();
+    var amt = parseFloat(document.getElementById('newConceptAmt').value);
+    var type = document.getElementById('newConceptType').value;
+    var desc = document.getElementById('newConceptDesc').value.trim();
+    if (!name || isNaN(amt) || amt <= 0) { alert('El valor debe ser mayor que 0.'); return; }
+    config.concepts.push({ name: name, amount: amt, type: type, desc: desc });
     document.getElementById('newConceptName').value = '';
     document.getElementById('newConceptAmt').value = '';
-    renderConcepts();
-    renderWeekChecks();
-    scheduleSave();
+    document.getElementById('newConceptDesc').value = '';
+    renderConcepts(); renderWeekChecks(); scheduleSave();
   }
 
   function removeConcept(i) {
     config.concepts.splice(i, 1);
-    renderConcepts();
-    renderWeekChecks();
-    scheduleSave();
+    renderConcepts(); renderWeekChecks(); scheduleSave();
   }
 
   function renderWeekChecks() {
-    const el = document.getElementById('weekConceptChecks');
+    var el = document.getElementById('weekConceptChecks');
     if (!config.concepts.length) { el.innerHTML = '<div style="font-size:13px;color:#aaa;">Añade conceptos en configuración</div>'; return; }
-    el.innerHTML = config.concepts.map((c, i) => `
-      <div class="week-concept">
-        <label class="checkbox-label">
-          <input type="checkbox" id="chk_${i}" onchange="updatePreview()">
-          <span>${c.name}</span>
-        </label>
-        <span style="min-width:70px; text-align:right; color:${c.type==='plus'?'#1D9E75':'#A32D2D'}; font-size:13px;">${c.type==='plus'?'+':'−'}${fmt(c.amount)} €</span>
-      </div>`).join('');
+    el.innerHTML = config.concepts.map(function(c, i) {
+      return '<div class="week-concept">' +
+        '<label class="checkbox-label"><input type="checkbox" id="chk_' + i + '" onchange="updatePreview()"><span>' + esc(c.name) + (c.desc ? '<span class="concept-label-desc">— ' + esc(c.desc) + '</span>' : '') + '</span></label>' +
+        '<span style="min-width:70px; text-align:right; color:' + (c.type==='plus'?'#1D9E75':'#A32D2D') + '; font-size:13px;">' + (c.type==='plus'?'+':'−') + fmt(c.amount) + ' €</span>' +
+        '</div>';
+    }).join('');
     updatePreview();
   }
 
   function getCheckedTotal() {
-    let total = config.base;
-    config.concepts.forEach((c, i) => {
-      const chk = document.getElementById('chk_' + i);
+    var total = config.base;
+    config.concepts.forEach(function(c, i) {
+      var chk = document.getElementById('chk_' + i);
       if (chk && chk.checked) total += c.type === 'plus' ? c.amount : -c.amount;
     });
     return Math.max(0, total);
@@ -345,63 +349,79 @@
   function willApplyInterest() { return (history.length + 1) % 4 === 0; }
 
   function updatePreview() {
-    const total = getCheckedTotal();
-    const diff = total - config.base;
-    const toSave = parseFloat(document.getElementById('savingsAmount').value) || 0;
-    const projectedSavings = savings + toSave;
-    const applyInterest = willApplyInterest();
-    const interestGained = applyInterest ? parseFloat((projectedSavings * (config.interest / 100)).toFixed(2)) : 0;
-    let html = `Paga base: <strong>${fmt(config.base)} €</strong>`;
-    if (diff !== 0) html += ` · Conceptos: <strong style="color:${diff>=0?'#1D9E75':'#A32D2D'}">${diff>=0?'+':''}${fmt(diff)} €</strong>`;
-    html += ` → <strong style="color:#185FA5;">Total: ${fmt(total)} €</strong>`;
-    if (toSave > 0) html += `<br>Guardar en hucha: <strong style="color:#1D9E75;">${fmt(toSave)} €</strong>`;
+    var total = getCheckedTotal();
+    var diff = total - config.base;
+    var toSave = parseFloat(document.getElementById('savingsAmount').value) || 0;
+    var projectedSavings = savings + toSave;
+    var applyInterest = willApplyInterest();
+    var interestGained = applyInterest ? parseFloat((projectedSavings * (config.interest / 100)).toFixed(2)) : 0;
+    var html = 'Paga base: <strong>' + fmt(config.base) + ' €</strong>';
+    if (diff !== 0) html += ' · Conceptos: <strong style="color:' + (diff>=0?'#1D9E75':'#A32D2D') + '">' + (diff>=0?'+':'') + fmt(diff) + ' €</strong>';
+    html += ' → <strong style="color:#185FA5;">Total semana: ' + fmt(total) + ' €</strong>';
+    if (toSave > 0) html += '<br>Guardar en hucha: <strong style="color:#1D9E75;">' + fmt(toSave) + ' €</strong>';
     if (applyInterest) {
-      html += `<br><span style="background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:4px;font-size:12px;">🎉 ¡Semana 4! Interés del ${config.interest}%: +${fmt(interestGained)} € sobre ${fmt(projectedSavings)} € ahorrados</span>`;
+      html += '<br><span style="background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:4px;font-size:12px;">🎉 ¡Semana 4! Interés del ' + config.interest + '%: +' + fmt(interestGained) + ' € sobre ' + fmt(projectedSavings) + ' € ahorrados</span>';
     } else {
-      const weeksLeft = 4 - ((history.length + 1) % 4);
-      if (savings > 0 || toSave > 0) html += `<br><span style="font-size:12px;color:#888;">${weeksLeft} semana${weeksLeft!==1?'s':''} para cobrar el interés mensual</span>`;
+      var weeksLeft = 4 - ((history.length + 1) % 4);
+      if (savings > 0 || toSave > 0) html += '<br><span style="font-size:12px;color:#888;">' + weeksLeft + ' semana' + (weeksLeft!==1?'s':'') + ' para cobrar el interés mensual</span>';
     }
     document.getElementById('weekPreview').innerHTML = html;
   }
 
   function closeWeek() {
-    const label = document.getElementById('weekLabel').value.trim() || `Semana ${history.length + 1}`;
-    const total = getCheckedTotal();
-    const toSave = Math.min(parseFloat(document.getElementById('savingsAmount').value) || 0, total);
-    const checkedConcepts = config.concepts.filter((c, i) => { const el = document.getElementById('chk_' + i); return el && el.checked; });
-    const newSavings = parseFloat((savings + toSave).toFixed(4));
-    const applyInterest = willApplyInterest();
-    const interestGained = applyInterest ? parseFloat((newSavings * (config.interest / 100)).toFixed(4)) : 0;
+    var label = document.getElementById('weekLabel').value.trim() || ('Semana ' + (history.length + 1));
+    var total = getCheckedTotal();
+    var toSave = Math.min(parseFloat(document.getElementById('savingsAmount').value) || 0, total);
+    var checkedConcepts = config.concepts.filter(function(c, i) { var el = document.getElementById('chk_' + i); return el && el.checked; });
+    var newSavings = parseFloat((savings + toSave).toFixed(4));
+    var applyInterest = willApplyInterest();
+    var interestGained = applyInterest ? parseFloat((newSavings * (config.interest / 100)).toFixed(4)) : 0;
     savings = parseFloat((newSavings + interestGained).toFixed(4));
-    history.unshift({ label, base: config.base, total, interest: interestGained, saved: toSave, applyInterest, concepts: checkedConcepts.map(c => ({ name: c.name, type: c.type, amount: c.amount })) });
+    history.unshift({ label: label, base: config.base, total: total, interest: interestGained, saved: toSave, type: 'week', concepts: checkedConcepts.map(function(c){ return { name: c.name, type: c.type, amount: c.amount }; }) });
     document.getElementById('weekLabel').value = '';
     document.getElementById('savingsAmount').value = '';
-    config.concepts.forEach((c, i) => { const el = document.getElementById('chk_' + i); if (el) el.checked = false; });
-    renderHistory();
-    updateMetrics();
-    updatePreview();
-    scheduleSave();
+    config.concepts.forEach(function(c, i) { var el = document.getElementById('chk_' + i); if (el) el.checked = false; });
+    renderHistory(); updateMetrics(); updatePreview(); scheduleSave();
+  }
+
+  function withdrawSavings() {
+    var amt = parseFloat(document.getElementById('withdrawAmount').value) || 0;
+    var reason = document.getElementById('withdrawReason').value.trim();
+    if (amt <= 0) { alert('Introduce una cantidad válida.'); return; }
+    if (amt > savings) { alert('No hay suficiente en la hucha. Tienes ' + fmt(savings) + ' €.'); return; }
+    savings = parseFloat((savings - amt).toFixed(4));
+    history.unshift({ label: reason || 'Retirada', amount: amt, type: 'withdraw' });
+    document.getElementById('withdrawAmount').value = '';
+    document.getElementById('withdrawReason').value = '';
+    renderHistory(); updateMetrics(); scheduleSave();
   }
 
   function renderHistory() {
-    const el = document.getElementById('historyList');
+    var el = document.getElementById('historyList');
     if (!history.length) { el.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:1rem;">Sin semanas registradas aún</div>'; return; }
-    el.innerHTML = history.map(w => {
-      const tags = w.concepts.map(c => `<span class="tag" style="color:${c.type==='plus'?'#3B6D11':'#A32D2D'}">${c.type==='plus'?'+':'-'}${fmt(c.amount)} ${c.name}</span>`).join(' ');
-      const extras = [];
-      if (w.interest > 0.001) extras.push(`<span class="tag" style="background:#FAEEDA;color:#633806;">🎉 +${fmt(w.interest)} interés</span>`);
-      if (w.saved > 0) extras.push(`<span class="tag" style="color:#185FA5;">🏦 ${fmt(w.saved)} ahorrado</span>`);
-      return `<div class="history-row">
-        <span class="history-week">${w.label}</span>
-        <span class="history-detail">${tags||'<span style="color:#ccc">—</span>'} ${extras.join(' ')}</span>
-        <span class="history-amount">${fmt(w.total)} €</span>
-      </div>`;
+    el.innerHTML = history.map(function(w) {
+      if (w.type === 'withdraw') {
+        return '<div class="history-row">' +
+          '<span class="history-week" style="color:#A32D2D;">💸 Retirada</span>' +
+          '<span class="history-detail">' + esc(w.label) + '</span>' +
+          '<span class="history-amount" style="color:#A32D2D;">−' + fmt(w.amount) + ' €</span>' +
+          '</div>';
+      }
+      var tags = w.concepts.map(function(c){ return '<span class="tag" style="color:' + (c.type==='plus'?'#3B6D11':'#A32D2D') + '">' + (c.type==='plus'?'+':'−') + fmt(c.amount) + ' ' + esc(c.name) + '</span>'; }).join(' ');
+      var extras = [];
+      if (w.interest > 0.001) extras.push('<span class="tag" style="background:#FAEEDA;color:#633806;">🎉 +' + fmt(w.interest) + ' interés</span>');
+      if (w.saved > 0) extras.push('<span class="tag" style="color:#185FA5;">🏦 ' + fmt(w.saved) + ' ahorrado</span>');
+      return '<div class="history-row">' +
+        '<span class="history-week">' + esc(w.label) + '</span>' +
+        '<span class="history-detail">' + (tags||'<span style="color:#ccc">—</span>') + ' ' + extras.join(' ') + '</span>' +
+        '<span class="history-amount">' + fmt(w.total) + ' €</span>' +
+        '</div>';
     }).join('');
   }
 
   function updateMetrics() {
-    const totalReceived = history.reduce((s, w) => s + w.total, 0);
-    const totalInterest = history.reduce((s, w) => s + (w.interest || 0), 0);
+    var totalReceived = history.filter(function(w){return w.type==='week';}).reduce(function(s,w){return s+w.total;},0);
+    var totalInterest = history.filter(function(w){return w.type==='week';}).reduce(function(s,w){return s+(w.interest||0);},0);
     document.getElementById('totalReceived').textContent = fmt(totalReceived) + ' €';
     document.getElementById('totalSavings').textContent = fmt(savings) + ' €';
     document.getElementById('totalInterest').textContent = fmt(totalInterest) + ' €';
@@ -410,76 +430,69 @@
   function clearHistory() {
     if (!confirm('¿Borrar todo el historial y reiniciar la hucha a 0?')) return;
     history = []; savings = 0;
-    renderHistory();
-    updateMetrics();
-    updatePreview();
-    scheduleSave();
+    renderHistory(); updateMetrics(); updatePreview(); scheduleSave();
   }
 
-
+  function exportExcel() {
+    var rows = [];
+    rows.push(['\uD83C\uDF1F MI HUCHA DE AHORROS \uD83C\uDF1F']);
+    rows.push([]);
+    rows.push(['\uD83D\uDCB0 Paga base semanal:', fmt(config.base) + ' \u20AC']);
+    rows.push(['\uD83D\uDCC8 Inter\u00E9s mensual:', config.interest + '%']);
+    rows.push([]);
+    var totalReceived = history.filter(function(w){return w.type==='week';}).reduce(function(s,w){return s+w.total;},0);
+    var totalInterest = history.filter(function(w){return w.type==='week';}).reduce(function(s,w){return s+(w.interest||0);},0);
+    rows.push(['\uD83C\uDFE6 Hucha actual:', fmt(savings) + ' \u20AC']);
+    rows.push(['\uD83D\uDCEC Total recibido:', fmt(totalReceived) + ' \u20AC']);
+    rows.push(['\uD83C\uDF89 Inter\u00E9s ganado:', fmt(totalInterest) + ' \u20AC']);
+    rows.push([]);
+    rows.push(['\uD83D\uDCC5 HISTORIAL DETALLADO']);
+    rows.push(['Semana', 'Concepto', 'Tipo', 'Valor', 'Saldo semana', 'Guardado en hucha', 'Inter\u00E9s recibido']);
+    var hist = history.slice().reverse();
+    hist.forEach(function(w) {
+      if (w.type === 'withdraw') {
+        rows.push([w.label, 'Retirada de hucha', '−', fmt(w.amount) + ' \u20AC', '', '', '']);
+        return;
+      }
+      if (!w.concepts || !w.concepts.length) {
+        rows.push([w.label, '(sin conceptos)', '', '', fmt(w.total) + ' \u20AC', w.saved > 0 ? fmt(w.saved) + ' \u20AC' : '−', w.interest > 0.001 ? fmt(w.interest) + ' \u20AC' : '−']);
+      } else {
+        w.concepts.forEach(function(c, ci) {
+          var val = (c.type === 'plus' ? '+' : '\u2212') + fmt(c.amount) + ' \u20AC';
+          if (ci === 0) {
+            rows.push([w.label, c.name, c.type === 'plus' ? 'Premio' : 'Penalizaci\u00F3n', val, fmt(w.total) + ' \u20AC', w.saved > 0 ? fmt(w.saved) + ' \u20AC' : '−', w.interest > 0.001 ? fmt(w.interest) + ' \u20AC' : '−']);
+          } else {
+            rows.push(['', c.name, c.type === 'plus' ? 'Premio' : 'Penalizaci\u00F3n', val, '', '', '']);
+          }
+        });
+      }
+    });
+    var csv = rows.map(function(r){ return r.map(function(c){ return '"' + String(c).replace(/"/g,'""') + '"'; }).join(','); }).join('\n');
+    var blob = new Blob(['\uFEFF' + csv], {type: 'text/csv;charset=utf-8;'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'mi_hucha.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function exportPDF() {
-    if (!config.concepts.length) { alert("Aún no hay conceptos añadidos."); return; }
+    if (!config.concepts.length) { alert('Aún no hay conceptos añadidos.'); return; }
     var html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">';
-    html += '<style>';
-    html += 'body { font-family: Arial, sans-serif; padding: 2rem; color: #1a1a18; }';
-    html += 'h1 { font-size: 24px; text-align: center; margin-bottom: 4px; }';
-    html += 'p.sub { text-align: center; color: #888; font-size: 14px; margin-bottom: 2rem; }';
-    html += 'table { width: 100%; border-collapse: collapse; font-size: 15px; }';
-    html += 'th { background: #185FA5; color: white; padding: 10px 14px; text-align: left; font-weight: 500; }';
-    html += 'td { padding: 10px 14px; border-bottom: 1px solid #e8e8e5; }';
-    html += 'tr:nth-child(even) td { background: #f5f5f3; }';
-    html += '.plus { color: #1D9E75; font-weight: 500; }';
-    html += '.minus { color: #A32D2D; font-weight: 500; }';
-    html += '.dash { color: #ccc; }';
-    html += '.footer { margin-top: 2rem; text-align: center; font-size: 12px; color: #aaa; }';
-    html += '@media print { body { padding: 1rem; } }';
-    html += '</style></head><body>';
+    html += '<style>body{font-family:Arial,sans-serif;padding:2rem;color:#1a1a18;}h1{font-size:24px;text-align:center;margin-bottom:4px;}p.sub{text-align:center;color:#888;font-size:14px;margin-bottom:2rem;}table{width:100%;border-collapse:collapse;font-size:15px;}th{background:#185FA5;color:white;padding:10px 14px;text-align:left;font-weight:500;}td{padding:10px 14px;border-bottom:1px solid #e8e8e5;}tr:nth-child(even) td{background:#f5f5f3;}.plus{color:#1D9E75;font-weight:500;}.minus{color:#A32D2D;font-weight:500;}.dash{color:#ccc;}.desc{font-size:12px;color:#888;}.footer{margin-top:2rem;text-align:center;font-size:12px;color:#aaa;}</style>';
+    html += '</head><body>';
     html += '<h1>\uD83C\uDF1F Mis normas de la mesada \uD83C\uDF1F</h1>';
     html += '<p class="sub">Paga base semanal: ' + fmt(config.base) + ' \u20AC &nbsp;\u00B7&nbsp; Inter\u00E9s mensual: ' + config.interest + '%</p>';
-    html += '<table>';
-    html += '<tr><th>Concepto</th><th>\u2705 Si lo hago</th><th>\u274C Si no lo hago</th></tr>';
+    html += '<table><tr><th>Concepto</th><th>\u2705 Si lo hago</th><th>\u274C Si no lo hago</th></tr>';
     config.concepts.forEach(function(c) {
       var siLohace = c.type === 'plus' ? '<span class="plus">+' + fmt(c.amount) + ' \u20AC</span>' : '<span class="dash">\u2014</span>';
       var siNoLohace = c.type === 'minus' ? '<span class="minus">\u2212' + fmt(c.amount) + ' \u20AC</span>' : '<span class="dash">\u2014</span>';
-      html += '<tr><td>' + c.name + '</td><td>' + siLohace + '</td><td>' + siNoLohace + '</td></tr>';
+      html += '<tr><td><strong>' + c.name + '</strong>' + (c.desc ? '<br><span class="desc">' + c.desc + '</span>' : '') + '</td><td>' + siLohace + '</td><td>' + siNoLohace + '</td></tr>';
     });
-    html += '</table>';
-    html += '<p class="footer">Generado desde Mi Hucha \u2022 Paga base: ' + fmt(config.base) + ' \u20AC/semana</p>';
-    html += '</body></html>';
+    html += '</table><p class="footer">Mesada Luke \u2022 Paga base: ' + fmt(config.base) + ' \u20AC/semana</p></body></html>';
     var blob = new Blob([html], {type: 'text/html;charset=utf-8;'});
     var url = URL.createObjectURL(blob);
     var win = window.open(url, '_blank');
     win.onload = function() { win.print(); };
-  }
-
-  function exportExcel() {
-    const rows = [];
-    rows.push(["\uD83C\uDF1F MI HUCHA DE AHORROS \uD83C\uDF1F"]);
-    rows.push([]);
-    rows.push(["\uD83D\uDCB0 Paga base semanal:", config.base + " \u20AC"]);
-    rows.push(["\uD83D\uDCC8 Inter\u00E9s mensual:", config.interest + "%"]);
-    rows.push([]);
-    const totalReceived = history.reduce(function(s,w){return s+w.total;},0);
-    const totalInterest = history.reduce(function(s,w){return s+(w.interest||0);},0);
-    rows.push(["\uD83C\uDFE6 Lo que tengo en la hucha:", fmt(savings) + " \u20AC"]);
-    rows.push(["\uD83D\uDCEC Total recibido:", fmt(totalReceived) + " \u20AC"]);
-    rows.push(["\uD83C\uDF89 Inter\u00E9s ganado:", fmt(totalInterest) + " \u20AC"]);
-    rows.push([]);
-    rows.push(["\uD83D\uDCC5 MI HISTORIAL SEMANAL"]);
-    rows.push(["Semana", "Lo que gan\u00E9 \uD83D\uDCB5", "Lo que guard\u00E9 \uD83C\uDFE6", "Inter\u00E9s \uD83C\uDF89", "Conceptos"]);
-    var hist = history.slice().reverse();
-    hist.forEach(function(w) {
-      var conceptos = w.concepts.map(function(c){return (c.type==="plus"?"+":"-")+fmt(c.amount)+" "+c.name;}).join(", ");
-      rows.push([w.label, fmt(w.total)+" \u20AC", w.saved>0?fmt(w.saved)+" \u20AC":"-", w.interest>0.001?"+"+fmt(w.interest)+" \u20AC":"-", conceptos||"-"]);
-    });
-    if (!history.length) rows.push(["A\u00FAn no hay semanas registradas"]);
-    var csv = rows.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");
-    var blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href=url; a.download="mi_hucha.csv"; a.click();
-    URL.revokeObjectURL(url);
   }
 
   function fmt(n) {

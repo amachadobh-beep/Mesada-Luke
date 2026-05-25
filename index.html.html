@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestión de Pagas Semanales</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f5f3; color: #1a1a18; padding: 1.5rem; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 1.5rem; }
+  .section { background: white; border: 1px solid #e0ddd4; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+  .section-title { font-size: 12px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1rem; }
+  .metric { background: #f5f5f3; border-radius: 8px; padding: 0.875rem 1rem; }
+  .metric-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .metric-value { font-size: 22px; font-weight: 500; }
+  .metric-value.blue { color: #185FA5; }
+  .metric-value.green { color: #1D9E75; }
+  .metric-value.amber { color: #BA7517; }
+  input[type="text"], input[type="number"] { border: 1px solid #ccc; background: white; color: #1a1a18; padding: 6px 10px; border-radius: 8px; font-size: 14px; outline: none; }
+  input:focus { border-color: #185FA5; }
+  select { border: 1px solid #ccc; background: white; color: #1a1a18; padding: 6px 10px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+  .btn { border: 1px solid #ccc; background: transparent; padding: 6px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; color: #1a1a18; }
+  .btn:hover { background: #f5f5f3; }
+  .btn-primary { background: #185FA5; color: white; border-color: #185FA5; }
+  .btn-primary:hover { background: #0C447C; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-danger { color: #A32D2D; }
+  .btn-danger:hover { background: #FCEBEB; }
+  .badge-plus { background: #EAF3DE; color: #3B6D11; display:inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+  .badge-minus { background: #FCEBEB; color: #A32D2D; display:inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+  .inline-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .label-sm { font-size: 13px; color: #555; white-space: nowrap; }
+  .concept-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .week-concept { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+  .checkbox-label { display: flex; align-items: center; gap: 6px; cursor: pointer; flex: 1; }
+  .divider { border: none; border-top: 1px solid #e8e8e5; margin: 1rem 0; }
+  .history-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f0ede4; font-size: 13px; }
+  .history-row:last-child { border-bottom: none; }
+  .history-week { font-weight: 500; min-width: 80px; }
+  .history-detail { flex: 1; color: #666; font-size: 12px; line-height: 1.8; }
+  .history-amount { font-weight: 500; min-width: 70px; text-align: right; color: #185FA5; }
+  .tag { font-size: 11px; background: #f0ede4; border-radius: 4px; padding: 1px 6px; color: #555; display: inline-block; }
+  #weekPreview { font-size: 13px; color: #555; margin-bottom: 12px; line-height: 1.7; }
+  #loginSection { text-align: center; padding: 3rem 1rem; }
+  #loginSection p { color: #555; margin-bottom: 1.5rem; font-size: 14px; }
+  #appSection { display: none; }
+  .sync-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; font-size: 12px; color: #888; }
+  .sync-status { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #ccc; display: inline-block; }
+  .dot.green { background: #1D9E75; }
+  .dot.amber { background: #BA7517; }
+  .dot.red { background: #A32D2D; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginSection">
+  <h1>💰 Pagas semanales</h1>
+  <p>Inicia sesión con Google para sincronizar los datos<br>en todos los dispositivos.</p>
+  <div id="googleBtn"></div>
+</div>
+
+<!-- APP -->
+<div id="appSection">
+  <div class="sync-bar">
+    <span>💰 <strong>Pagas semanales</strong></span>
+    <span class="sync-status">
+      <span class="dot" id="syncDot"></span>
+      <span id="syncText">—</span>
+      &nbsp;·&nbsp;
+      <button class="btn btn-sm" onclick="signOut()" style="font-size:11px; padding:2px 8px;">Cerrar sesión</button>
+    </span>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Configuración</div>
+    <div class="inline-row" style="margin-bottom:12px;">
+      <span class="label-sm">Paga base semanal</span>
+      <input type="number" id="baseAllowance" value="5" min="0" step="0.5" style="width:80px;" oninput="saveConfig()">
+      <span class="label-sm">€ &nbsp;|&nbsp; Interés ahorro</span>
+      <input type="number" id="interestRate" value="10" min="0" max="200" step="1" style="width:70px;" oninput="saveConfig()">
+      <span class="label-sm">% / mes (cada 4 semanas)</span>
+    </div>
+    <hr class="divider">
+    <div class="section-title" style="margin-bottom:8px;">Conceptos que suman o restan</div>
+    <div id="conceptsList"></div>
+    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+      <input type="text" id="newConceptName" placeholder="Nombre (ej: ordenar cuarto)" style="flex:1; min-width:140px;">
+      <input type="number" id="newConceptAmt" placeholder="€" step="0.5" style="width:70px;">
+      <select id="newConceptType">
+        <option value="plus">+ Suma</option>
+        <option value="minus">− Resta</option>
+      </select>
+      <button class="btn btn-sm" onclick="addConcept()">Añadir</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Cerrar semana</div>
+    <div class="inline-row" style="margin-bottom:12px;">
+      <span class="label-sm">Etiqueta</span>
+      <input type="text" id="weekLabel" placeholder="Ej: Semana 1 / 3 junio" style="width:200px;">
+    </div>
+    <div id="weekConceptChecks" style="margin-bottom:12px;"></div>
+    <div class="inline-row" style="margin-bottom:12px;">
+      <span class="label-sm">Guardar en hucha</span>
+      <input type="number" id="savingsAmount" placeholder="0" min="0" step="0.5" style="width:80px;" oninput="updatePreview()">
+      <span class="label-sm">€ de lo recibido esta semana</span>
+    </div>
+    <div id="weekPreview"></div>
+    <button class="btn btn-primary" onclick="closeWeek()">Cerrar semana ✓</button>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Total recibido</div>
+      <div class="metric-value blue" id="totalReceived">0,00 €</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Hucha actual</div>
+      <div class="metric-value green" id="totalSavings">0,00 €</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Interés ganado</div>
+      <div class="metric-value amber" id="totalInterest">0,00 €</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Historial de semanas</span>
+      <button class="btn btn-sm btn-danger" onclick="clearHistory()">Borrar todo</button>
+    </div>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<script>
+  const CLIENT_ID = '275995370423-hsd767fov6ate7h0kdcjeo4k1r4blged.apps.googleusercontent.com';
+  const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
+  const FILE_NAME = 'pagas_data.json';
+
+  let accessToken = null;
+  let fileId = null;
+  let config = { base: 5, interest: 10, concepts: [] };
+  let history = [];
+  let savings = 0;
+  let saveTimeout = null;
+
+  // ── AUTH ──────────────────────────────────────────────
+  window.onload = function() {
+    google.accounts.id.initialize({
+      client_id: CLIENT_ID,
+      callback: handleCredential,
+      auto_select: true
+    });
+    google.accounts.id.renderButton(document.getElementById('googleBtn'), {
+      theme: 'outline', size: 'large', text: 'signin_with', locale: 'es'
+    });
+    // Try silent token first
+    tryTokenClient();
+  };
+
+  function tryTokenClient() {
+    const tc = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      prompt: '',
+      callback: (resp) => {
+        if (resp.access_token) { accessToken = resp.access_token; showApp(); loadFromDrive(); }
+      }
+    });
+    tc.requestAccessToken({ prompt: '' });
+  }
+
+  function handleCredential(response) {
+    // After ID login, get access token for Drive
+    const tc = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: (resp) => {
+        if (resp.access_token) { accessToken = resp.access_token; showApp(); loadFromDrive(); }
+      }
+    });
+    tc.requestAccessToken({ prompt: '' });
+  }
+
+  function showApp() {
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('appSection').style.display = 'block';
+  }
+
+  function signOut() {
+    google.accounts.id.disableAutoSelect();
+    accessToken = null;
+    document.getElementById('loginSection').style.display = 'block';
+    document.getElementById('appSection').style.display = 'none';
+  }
+
+  // ── DRIVE ─────────────────────────────────────────────
+  function setSyncStatus(state, text) {
+    const dot = document.getElementById('syncDot');
+    const txt = document.getElementById('syncText');
+    dot.className = 'dot ' + state;
+    txt.textContent = text;
+  }
+
+  async function loadFromDrive() {
+    setSyncStatus('amber', 'Cargando...');
+    try {
+      const res = await fetch(
+        'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)&q=name="' + FILE_NAME + '"',
+        { headers: { Authorization: 'Bearer ' + accessToken } }
+      );
+      const data = await res.json();
+      if (data.files && data.files.length > 0) {
+        fileId = data.files[0].id;
+        const content = await fetch(
+          'https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media',
+          { headers: { Authorization: 'Bearer ' + accessToken } }
+        );
+        const json = await content.json();
+        config = json.config || config;
+        history = json.history || [];
+        savings = json.savings || 0;
+      }
+      setSyncStatus('green', 'Sincronizado');
+    } catch(e) {
+      setSyncStatus('red', 'Error al cargar');
+    }
+    applyConfig();
+    renderConcepts();
+    renderWeekChecks();
+    renderHistory();
+    updateMetrics();
+  }
+
+  async function saveToDrive() {
+    setSyncStatus('amber', 'Guardando...');
+    const body = JSON.stringify({ config, history, savings });
+    try {
+      if (fileId) {
+        await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
+          method: 'PATCH',
+          headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+          body
+        });
+      } else {
+        const meta = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: FILE_NAME, parents: ['appDataFolder'] })
+        });
+        const metaJson = await meta.json();
+        fileId = metaJson.id;
+        await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
+          method: 'PATCH',
+          headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+          body
+        });
+      }
+      setSyncStatus('green', 'Sincronizado');
+    } catch(e) {
+      setSyncStatus('red', 'Error al guardar');
+    }
+  }
+
+  function scheduleSave() {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(saveToDrive, 1000);
+  }
+
+  // ── APP LOGIC ─────────────────────────────────────────
+  function applyConfig() {
+    document.getElementById('baseAllowance').value = config.base;
+    document.getElementById('interestRate').value = config.interest;
+  }
+
+  function saveConfig() {
+    config.base = parseFloat(document.getElementById('baseAllowance').value) || 0;
+    config.interest = parseFloat(document.getElementById('interestRate').value) || 0;
+    renderWeekChecks();
+    updatePreview();
+    scheduleSave();
+  }
+
+  function renderConcepts() {
+    const el = document.getElementById('conceptsList');
+    if (!config.concepts.length) { el.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:0.5rem;">Sin conceptos aún. Añade tareas, comportamiento, etc.</div>'; return; }
+    el.innerHTML = config.concepts.map((c, i) => `
+      <div class="concept-row">
+        <span class="${c.type==='plus'?'badge-plus':'badge-minus'}">${c.type==='plus'?'+':'−'} ${fmt(c.amount)} €</span>
+        <span style="flex:1; font-size:14px;">${c.name}</span>
+        <button class="btn btn-sm btn-danger" onclick="removeConcept(${i})">✕</button>
+      </div>`).join('');
+  }
+
+  function addConcept() {
+    const name = document.getElementById('newConceptName').value.trim();
+    const amt = parseFloat(document.getElementById('newConceptAmt').value);
+    const type = document.getElementById('newConceptType').value;
+    if (!name || isNaN(amt) || amt <= 0) return;
+    config.concepts.push({ name, amount: amt, type });
+    document.getElementById('newConceptName').value = '';
+    document.getElementById('newConceptAmt').value = '';
+    renderConcepts();
+    renderWeekChecks();
+    scheduleSave();
+  }
+
+  function removeConcept(i) {
+    config.concepts.splice(i, 1);
+    renderConcepts();
+    renderWeekChecks();
+    scheduleSave();
+  }
+
+  function renderWeekChecks() {
+    const el = document.getElementById('weekConceptChecks');
+    if (!config.concepts.length) { el.innerHTML = '<div style="font-size:13px;color:#aaa;">Añade conceptos en configuración</div>'; return; }
+    el.innerHTML = config.concepts.map((c, i) => `
+      <div class="week-concept">
+        <label class="checkbox-label">
+          <input type="checkbox" id="chk_${i}" onchange="updatePreview()">
+          <span>${c.name}</span>
+        </label>
+        <span style="min-width:70px; text-align:right; color:${c.type==='plus'?'#1D9E75':'#A32D2D'}; font-size:13px;">${c.type==='plus'?'+':'−'}${fmt(c.amount)} €</span>
+      </div>`).join('');
+    updatePreview();
+  }
+
+  function getCheckedTotal() {
+    let total = config.base;
+    config.concepts.forEach((c, i) => {
+      const chk = document.getElementById('chk_' + i);
+      if (chk && chk.checked) total += c.type === 'plus' ? c.amount : -c.amount;
+    });
+    return Math.max(0, total);
+  }
+
+  function willApplyInterest() { return (history.length + 1) % 4 === 0; }
+
+  function updatePreview() {
+    const total = getCheckedTotal();
+    const diff = total - config.base;
+    const toSave = parseFloat(document.getElementById('savingsAmount').value) || 0;
+    const projectedSavings = savings + toSave;
+    const applyInterest = willApplyInterest();
+    const interestGained = applyInterest ? parseFloat((projectedSavings * (config.interest / 100)).toFixed(2)) : 0;
+    let html = `Paga base: <strong>${fmt(config.base)} €</strong>`;
+    if (diff !== 0) html += ` · Conceptos: <strong style="color:${diff>=0?'#1D9E75':'#A32D2D'}">${diff>=0?'+':''}${fmt(diff)} €</strong>`;
+    html += ` → <strong style="color:#185FA5;">Total: ${fmt(total)} €</strong>`;
+    if (toSave > 0) html += `<br>Guardar en hucha: <strong style="color:#1D9E75;">${fmt(toSave)} €</strong>`;
+    if (applyInterest) {
+      html += `<br><span style="background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:4px;font-size:12px;">🎉 ¡Semana 4! Interés del ${config.interest}%: +${fmt(interestGained)} € sobre ${fmt(projectedSavings)} € ahorrados</span>`;
+    } else {
+      const weeksLeft = 4 - ((history.length + 1) % 4);
+      if (savings > 0 || toSave > 0) html += `<br><span style="font-size:12px;color:#888;">${weeksLeft} semana${weeksLeft!==1?'s':''} para cobrar el interés mensual</span>`;
+    }
+    document.getElementById('weekPreview').innerHTML = html;
+  }
+
+  function closeWeek() {
+    const label = document.getElementById('weekLabel').value.trim() || `Semana ${history.length + 1}`;
+    const total = getCheckedTotal();
+    const toSave = Math.min(parseFloat(document.getElementById('savingsAmount').value) || 0, total);
+    const checkedConcepts = config.concepts.filter((c, i) => { const el = document.getElementById('chk_' + i); return el && el.checked; });
+    const newSavings = parseFloat((savings + toSave).toFixed(4));
+    const applyInterest = willApplyInterest();
+    const interestGained = applyInterest ? parseFloat((newSavings * (config.interest / 100)).toFixed(4)) : 0;
+    savings = parseFloat((newSavings + interestGained).toFixed(4));
+    history.unshift({ label, base: config.base, total, interest: interestGained, saved: toSave, applyInterest, concepts: checkedConcepts.map(c => ({ name: c.name, type: c.type, amount: c.amount })) });
+    document.getElementById('weekLabel').value = '';
+    document.getElementById('savingsAmount').value = '';
+    config.concepts.forEach((c, i) => { const el = document.getElementById('chk_' + i); if (el) el.checked = false; });
+    renderHistory();
+    updateMetrics();
+    updatePreview();
+    scheduleSave();
+  }
+
+  function renderHistory() {
+    const el = document.getElementById('historyList');
+    if (!history.length) { el.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:1rem;">Sin semanas registradas aún</div>'; return; }
+    el.innerHTML = history.map(w => {
+      const tags = w.concepts.map(c => `<span class="tag" style="color:${c.type==='plus'?'#3B6D11':'#A32D2D'}">${c.type==='plus'?'+':'-'}${fmt(c.amount)} ${c.name}</span>`).join(' ');
+      const extras = [];
+      if (w.interest > 0.001) extras.push(`<span class="tag" style="background:#FAEEDA;color:#633806;">🎉 +${fmt(w.interest)} interés</span>`);
+      if (w.saved > 0) extras.push(`<span class="tag" style="color:#185FA5;">🏦 ${fmt(w.saved)} ahorrado</span>`);
+      return `<div class="history-row">
+        <span class="history-week">${w.label}</span>
+        <span class="history-detail">${tags||'<span style="color:#ccc">—</span>'} ${extras.join(' ')}</span>
+        <span class="history-amount">${fmt(w.total)} €</span>
+      </div>`;
+    }).join('');
+  }
+
+  function updateMetrics() {
+    const totalReceived = history.reduce((s, w) => s + w.total, 0);
+    const totalInterest = history.reduce((s, w) => s + (w.interest || 0), 0);
+    document.getElementById('totalReceived').textContent = fmt(totalReceived) + ' €';
+    document.getElementById('totalSavings').textContent = fmt(savings) + ' €';
+    document.getElementById('totalInterest').textContent = fmt(totalInterest) + ' €';
+  }
+
+  function clearHistory() {
+    if (!confirm('¿Borrar todo el historial y reiniciar la hucha a 0?')) return;
+    history = []; savings = 0;
+    renderHistory();
+    updateMetrics();
+    updatePreview();
+    scheduleSave();
+  }
+
+  function fmt(n) {
+    return (Math.round(n * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+</script>
+</body>
+</html>

@@ -230,7 +230,12 @@
         var content = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + accessToken } });
         var json = await content.json();
         config = json.config || config;
-        history = json.history || [];
+        var rawHistory = json.history || [];
+        history = Array.isArray(rawHistory) ? rawHistory : [];
+        history = history.map(function(w) {
+          if (!w.type) w.type = 'week';
+          return w;
+        });
         savings = json.savings || 0;
       }
       setSyncStatus('green', 'Sincronizado');

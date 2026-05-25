@@ -179,7 +179,7 @@
   var accessToken = null;
   var fileId = null;
   var config = { base: 5, interest: 10, concepts: [] };
-  var history = [];
+  var weekHistory = [];
   var savings = 0;
   var saveTimeout = null;
 
@@ -231,8 +231,8 @@
         var json = await content.json();
         config = json.config || config;
         var rawHistory = json.history || [];
-        history = Array.isArray(rawHistory) ? rawHistory : [];
-        history = history.map(function(w) {
+        weekHistory = Array.isArray(rawHistory) ? rawHistory : [];
+        weekHistory = weekHistory.map(function(w) {
           if (!w.type) w.type = 'week';
           return w;
         });
@@ -245,7 +245,7 @@
 
   async function saveToDrive() {
     setSyncStatus('amber', 'Guardando...');
-    var body = JSON.stringify({ config: config, history: history, savings: savings });
+    var body = JSON.stringify({ config: config, history: weekHistory, savings: savings });
     try {
       if (fileId) {
         await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', { method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' }, body: body });
@@ -351,7 +351,7 @@
     return Math.max(0, total);
   }
 
-  function willApplyInterest() { return (history.length + 1) % 4 === 0; }
+  function willApplyInterest() { return (weekHistory.length + 1) % 4 === 0; }
 
   function updatePreview() {
     var total = getCheckedTotal();
@@ -367,14 +367,14 @@
     if (applyInterest) {
       html += '<br><span style="background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:4px;font-size:12px;">🎉 ¡Semana 4! Interés del ' + config.interest + '%: +' + fmt(interestGained) + ' € sobre ' + fmt(projectedSavings) + ' € ahorrados</span>';
     } else {
-      var weeksLeft = 4 - ((history.length + 1) % 4);
+      var weeksLeft = 4 - ((weekHistory.length + 1) % 4);
       if (savings > 0 || toSave > 0) html += '<br><span style="font-size:12px;color:#888;">' + weeksLeft + ' semana' + (weeksLeft!==1?'s':'') + ' para cobrar el interés mensual</span>';
     }
     document.getElementById('weekPreview').innerHTML = html;
   }
 
   function closeWeek() {
-    var label = document.getElementById('weekLabel').value.trim() || ('Semana ' + (history.length + 1));
+    var label = document.getElementById('weekLabel').value.trim() || ('Semana ' + (weekHistory.length + 1));
     var total = getCheckedTotal();
     var toSave = Math.min(parseFloat(document.getElementById('savingsAmount').value) || 0, total);
     var checkedConcepts = config.concepts.filter(function(c, i) { var el = document.getElementById('chk_' + i); return el && el.checked; });
@@ -382,7 +382,7 @@
     var applyInterest = willApplyInterest();
     var interestGained = applyInterest ? parseFloat((newSavings * (config.interest / 100)).toFixed(4)) : 0;
     savings = parseFloat((newSavings + interestGained).toFixed(4));
-    history.unshift({ label: label, base: config.base, total: total, interest: interestGained, saved: toSave, type: 'week', concepts: checkedConcepts.map(function(c){ return { name: c.name, type: c.type, amount: c.amount }; }) });
+    weekHistory.unshift({ label: label, base: config.base, total: total, interest: interestGained, saved: toSave, type: 'week', concepts: checkedConcepts.map(function(c){ return { name: c.name, type: c.type, amount: c.amount }; }) });
     document.getElementById('weekLabel').value = '';
     document.getElementById('savingsAmount').value = '';
     config.concepts.forEach(function(c, i) { var el = document.getElementById('chk_' + i); if (el) el.checked = false; });
@@ -395,7 +395,7 @@
     if (amt <= 0) { alert('Introduce una cantidad válida.'); return; }
     if (amt > savings) { alert('No hay suficiente en la hucha. Tienes ' + fmt(savings) + ' €.'); return; }
     savings = parseFloat((savings - amt).toFixed(4));
-    history.unshift({ label: reason || 'Retirada', amount: amt, type: 'withdraw' });
+    weekHistory.unshift({ label: reason || 'Retirada', amount: amt, type: 'withdraw' });
     document.getElementById('withdrawAmount').value = '';
     document.getElementById('withdrawReason').value = '';
     renderHistory(); updateMetrics(); scheduleSave();
@@ -403,8 +403,8 @@
 
   function renderHistory() {
     var el = document.getElementById('historyList');
-    if (!history.length) { el.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:1rem;">Sin semanas registradas aún</div>'; return; }
-    el.innerHTML = history.map(function(w) {
+    if (!weekHistory.length) { el.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:1rem;">Sin semanas registradas aún</div>'; return; }
+    el.innerHTML = weekHistory.map(function(w) {
       if (w.type === 'withdraw') {
         return '<div class="history-row">' +
           '<span class="history-week" style="color:#A32D2D;">💸 Retirada</span>' +
@@ -425,8 +425,8 @@
   }
 
   function updateMetrics() {
-    var totalReceived = history.filter(function(w){return w.type==='week';}).reduce(function(s,w){return s+w.total;},0);
-    var totalInterest = history.filter(function(w){return w.type==='week';}).reduce(function(s,w){return s+(w.interest||0);},0);
+    var totalReceived = weekHistory.filter(function(w){return w.type==='week';}).reduce(function(s,w){return s+w.total;},0);
+    var totalInterest = weekHistory.filter(function(w){return w.type==='week';}).reduce(function(s,w){return s+(w.interest||0);},0);
     document.getElementById('totalReceived').textContent = fmt(totalReceived) + ' €';
     document.getElementById('totalSavings').textContent = fmt(savings) + ' €';
     document.getElementById('totalInterest').textContent = fmt(totalInterest) + ' €';
@@ -434,7 +434,7 @@
 
   function clearHistory() {
     if (!confirm('¿Borrar todo el historial y reiniciar la hucha a 0?')) return;
-    history = []; savings = 0;
+    weekHistory = []; savings = 0;
     renderHistory(); updateMetrics(); updatePreview(); scheduleSave();
   }
 
@@ -445,15 +445,15 @@
     rows.push(['\uD83D\uDCB0 Paga base semanal:', fmt(config.base) + ' \u20AC']);
     rows.push(['\uD83D\uDCC8 Inter\u00E9s mensual:', config.interest + '%']);
     rows.push([]);
-    var totalReceived = history.filter(function(w){return w.type==='week';}).reduce(function(s,w){return s+w.total;},0);
-    var totalInterest = history.filter(function(w){return w.type==='week';}).reduce(function(s,w){return s+(w.interest||0);},0);
+    var totalReceived = weekHistory.filter(function(w){return w.type==='week';}).reduce(function(s,w){return s+w.total;},0);
+    var totalInterest = weekHistory.filter(function(w){return w.type==='week';}).reduce(function(s,w){return s+(w.interest||0);},0);
     rows.push(['\uD83C\uDFE6 Hucha actual:', fmt(savings) + ' \u20AC']);
     rows.push(['\uD83D\uDCEC Total recibido:', fmt(totalReceived) + ' \u20AC']);
     rows.push(['\uD83C\uDF89 Inter\u00E9s ganado:', fmt(totalInterest) + ' \u20AC']);
     rows.push([]);
     rows.push(['\uD83D\uDCC5 HISTORIAL DETALLADO']);
     rows.push(['Semana', 'Concepto', 'Tipo', 'Valor', 'Saldo semana', 'Guardado en hucha', 'Inter\u00E9s recibido']);
-    var hist = history.slice().reverse();
+    var hist = weekHistory.slice().reverse();
     hist.forEach(function(w) {
       if (w.type === 'withdraw') {
         rows.push([w.label, 'Retirada de hucha', '−', fmt(w.amount) + ' \u20AC', '', '', '']);

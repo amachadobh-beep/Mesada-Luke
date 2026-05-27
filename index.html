@@ -108,6 +108,9 @@
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <input type="text" id="newConceptDesc" placeholder="Descripción (opcional, ej: Preparar mochila el día anterior)" style="flex:1; min-width:200px;">
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:#555;cursor:pointer;">
+          <input type="checkbox" id="newConceptRepeatable"> ¿Puede repetirse?
+        </label>
         <button class="btn btn-sm btn-primary" onclick="addConcept()">Añadir</button>
       </div>
     </div>
@@ -285,13 +288,14 @@
           '</div>' +
           '<div class="inline-row">' +
           '<input type="text" id="edesc_' + i + '" value="' + esc(c.desc||'') + '" placeholder="Descripción (opcional)" style="flex:1; min-width:200px;">' +
+          '<label style="display:flex;align-items:center;gap:5px;font-size:13px;color:#555;cursor:pointer;"><input type="checkbox" id="erep_' + i + '"' + (c.repeatable?' checked':'') + '> ¿Puede repetirse?</label>' +
           '<button class="btn btn-sm btn-primary" onclick="saveEdit(' + i + ')">Guardar</button>' +
           '<button class="btn btn-sm" onclick="cancelEdit(' + i + ')">Cancelar</button>' +
           '</div></div>';
       }
       return '<div class="concept-row">' +
         '<span class="' + (c.type==='plus'?'badge-plus':'badge-minus') + '">' + (c.type==='plus'?'+':'−') + ' ' + fmt(c.amount) + ' €</span>' +
-        '<div class="concept-info"><div class="concept-name">' + esc(c.name) + '</div>' + (c.desc ? '<div class="concept-desc">' + esc(c.desc) + '</div>' : '') + '</div>' +
+        '<div class="concept-info"><div class="concept-name">' + esc(c.name) + (c.repeatable ? ' <span style="font-size:10px;background:#f0ede4;border-radius:4px;padding:1px 5px;color:#888;">repetible</span>' : '') + '</div>' + (c.desc ? '<div class="concept-desc">' + esc(c.desc) + '</div>' : '') + '</div>' +
         '<button class="btn btn-sm" onclick="startEdit(' + i + ')" style="font-size:11px;">✏️</button>' +
         '<button class="btn btn-sm btn-danger" onclick="removeConcept(' + i + ')" style="font-size:11px;">✕</button>' +
         '</div>';
@@ -308,7 +312,8 @@
     var type = document.getElementById('etype_' + i).value;
     var desc = document.getElementById('edesc_' + i).value.trim();
     if (!name || isNaN(amt) || amt <= 0) { alert('El valor debe ser mayor que 0.'); return; }
-    config.concepts[i] = { name: name, amount: amt, type: type, desc: desc };
+    var rep = document.getElementById('erep_' + i) ? document.getElementById('erep_' + i).checked : false;
+    config.concepts[i] = { name: name, amount: amt, type: type, desc: desc, repeatable: rep };
     renderConcepts(); renderWeekChecks(); scheduleSave();
   }
 
@@ -318,10 +323,12 @@
     var type = document.getElementById('newConceptType').value;
     var desc = document.getElementById('newConceptDesc').value.trim();
     if (!name || isNaN(amt) || amt <= 0) { alert('El valor debe ser mayor que 0.'); return; }
-    config.concepts.push({ name: name, amount: amt, type: type, desc: desc });
+    var repeatable = document.getElementById('newConceptRepeatable').checked;
+    config.concepts.push({ name: name, amount: amt, type: type, desc: desc, repeatable: repeatable });
     document.getElementById('newConceptName').value = '';
     document.getElementById('newConceptAmt').value = '';
     document.getElementById('newConceptDesc').value = '';
+    document.getElementById('newConceptRepeatable').checked = false;
     renderConcepts(); renderWeekChecks(); scheduleSave();
   }
 
@@ -334,9 +341,14 @@
     var el = document.getElementById('weekConceptChecks');
     if (!config.concepts.length) { el.innerHTML = '<div style="font-size:13px;color:#aaa;">Añade conceptos en configuración</div>'; return; }
     el.innerHTML = config.concepts.map(function(c, i) {
+      var repField = c.repeatable
+        ? ' <input type="number" id="rep_' + i + '" min="0" step="1" value="0" style="width:50px;font-size:12px;" oninput="updatePreview()" placeholder="x">' +
+          ' <span style="font-size:11px;color:#888;">veces</span>'
+        : '';
       return '<div class="week-concept">' +
-        '<label class="checkbox-label"><input type="checkbox" id="chk_' + i + '" onchange="updatePreview()"><span>' + esc(c.name) + (c.desc ? '<span class="concept-label-desc">— ' + esc(c.desc) + '</span>' : '') + '</span></label>' +
-        '<span style="min-width:70px; text-align:right; color:' + (c.type==='plus'?'#1D9E75':'#A32D2D') + '; font-size:13px;">' + (c.type==='plus'?'+':'−') + fmt(c.amount) + ' €</span>' +
+        '<label class="checkbox-label"><input type="checkbox" id="chk_' + i + '" onchange="updatePreview()"' + (c.repeatable?' disabled':'') + '><span>' + esc(c.name) + (c.desc ? '<span class="concept-label-desc">— ' + esc(c.desc) + '</span>' : '') + '</span></label>' +
+        repField +
+        '<span style="min-width:70px; text-align:right; color:' + (c.type==='plus'?'#1D9E75':'#A32D2D') + '; font-size:13px;" id="repval_' + i + '">' + (c.type==='plus'?'+':'−') + fmt(c.amount) + ' €</span>' +
         '</div>';
     }).join('');
     updatePreview();
@@ -345,8 +357,18 @@
   function getCheckedTotal() {
     var total = config.base;
     config.concepts.forEach(function(c, i) {
-      var chk = document.getElementById('chk_' + i);
-      if (chk && chk.checked) total += c.type === 'plus' ? c.amount : -c.amount;
+      if (c.repeatable) {
+        var repEl = document.getElementById('rep_' + i);
+        var times = repEl ? (parseInt(repEl.value) || 0) : 0;
+        if (times > 0) total += (c.type === 'plus' ? c.amount : -c.amount) * times;
+        // Update label
+        var valEl = document.getElementById('repval_' + i);
+        if (valEl && times > 0) valEl.textContent = (c.type==='plus'?'+':'−') + fmt(c.amount * times) + ' €';
+        else if (valEl) valEl.textContent = (c.type==='plus'?'+':'−') + fmt(c.amount) + ' €';
+      } else {
+        var chk = document.getElementById('chk_' + i);
+        if (chk && chk.checked) total += c.type === 'plus' ? c.amount : -c.amount;
+      }
     });
     return Math.max(0, total);
   }
@@ -377,7 +399,17 @@
     var label = document.getElementById('weekLabel').value.trim() || ('Semana ' + (weekHistory.length + 1));
     var total = getCheckedTotal();
     var toSave = Math.min(parseFloat(document.getElementById('savingsAmount').value) || 0, total);
-    var checkedConcepts = config.concepts.filter(function(c, i) { var el = document.getElementById('chk_' + i); return el && el.checked; });
+    var checkedConcepts = [];
+    config.concepts.forEach(function(c, i) {
+      if (c.repeatable) {
+        var repEl = document.getElementById('rep_' + i);
+        var times = repEl ? (parseInt(repEl.value) || 0) : 0;
+        if (times > 0) checkedConcepts.push({ name: c.name, type: c.type, amount: c.amount * times, times: times });
+      } else {
+        var chk = document.getElementById('chk_' + i);
+        if (chk && chk.checked) checkedConcepts.push({ name: c.name, type: c.type, amount: c.amount });
+      }
+    });
     var newSavings = parseFloat((savings + toSave).toFixed(4));
     var applyInterest = willApplyInterest();
     var interestGained = applyInterest ? parseFloat((newSavings * (config.interest / 100)).toFixed(4)) : 0;
@@ -385,7 +417,10 @@
     weekHistory.unshift({ label: label, base: config.base, total: total, interest: interestGained, saved: toSave, type: 'week', concepts: checkedConcepts.map(function(c){ return { name: c.name, type: c.type, amount: c.amount }; }) });
     document.getElementById('weekLabel').value = '';
     document.getElementById('savingsAmount').value = '';
-    config.concepts.forEach(function(c, i) { var el = document.getElementById('chk_' + i); if (el) el.checked = false; });
+    config.concepts.forEach(function(c, i) {
+      if (c.repeatable) { var r = document.getElementById('rep_' + i); if (r) r.value = 0; }
+      else { var el = document.getElementById('chk_' + i); if (el) el.checked = false; }
+    });
     renderHistory(); updateMetrics(); updatePreview(); scheduleSave();
   }
 
@@ -412,7 +447,7 @@
           '<span class="history-amount" style="color:#A32D2D;">−' + fmt(w.amount) + ' €</span>' +
           '</div>';
       }
-      var tags = w.concepts.map(function(c){ return '<span class="tag" style="color:' + (c.type==='plus'?'#3B6D11':'#A32D2D') + '">' + (c.type==='plus'?'+':'−') + fmt(c.amount) + ' ' + esc(c.name) + '</span>'; }).join(' ');
+      var tags = w.concepts.map(function(c){ var label = c.times ? c.times + '× ' + esc(c.name) : esc(c.name); return '<span class="tag" style="color:' + (c.type==='plus'?'#3B6D11':'#A32D2D') + '">' + (c.type==='plus'?'+':'−') + fmt(c.amount) + ' ' + label + '</span>'; }).join(' ');
       var extras = [];
       if (w.interest > 0.001) extras.push('<span class="tag" style="background:#FAEEDA;color:#633806;">🎉 +' + fmt(w.interest) + ' interés</span>');
       if (w.saved > 0) extras.push('<span class="tag" style="color:#185FA5;">🏦 ' + fmt(w.saved) + ' ahorrado</span>');

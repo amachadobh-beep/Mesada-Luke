@@ -342,11 +342,14 @@
     if (!config.concepts.length) { el.innerHTML = '<div style="font-size:13px;color:#aaa;">Añade conceptos en configuración</div>'; return; }
     el.innerHTML = config.concepts.map(function(c, i) {
       var repField = c.repeatable
-        ? ' <input type="number" id="rep_' + i + '" min="0" step="1" value="0" style="width:50px;font-size:12px;" oninput="updatePreview()" placeholder="x">' +
-          ' <span style="font-size:11px;color:#888;">veces</span>'
+        ? ' <input type="number" id="rep_' + i + '" min="0" step="1" value="0" style="width:50px;font-size:12px;" oninput="updatePreview()" placeholder="0">' +
+          ' <span style="font-size:11px;color:#888;">veces (0 = no aplica)</span>'
         : '';
+      var checkOrLabel = c.repeatable
+        ? '<span style="font-size:13px;color:#555;">' + esc(c.name) + (c.desc ? '<span class="concept-label-desc">— ' + esc(c.desc) + '</span>' : '') + '</span>'
+        : '<label class="checkbox-label"><input type="checkbox" id="chk_' + i + '" onchange="updatePreview()"><span>' + esc(c.name) + (c.desc ? '<span class="concept-label-desc">— ' + esc(c.desc) + '</span>' : '') + '</span></label>';
       return '<div class="week-concept">' +
-        '<label class="checkbox-label"><input type="checkbox" id="chk_' + i + '" onchange="updatePreview()"' + (c.repeatable?' disabled':'') + '><span>' + esc(c.name) + (c.desc ? '<span class="concept-label-desc">— ' + esc(c.desc) + '</span>' : '') + '</span></label>' +
+        checkOrLabel +
         repField +
         '<span style="min-width:70px; text-align:right; color:' + (c.type==='plus'?'#1D9E75':'#A32D2D') + '; font-size:13px;" id="repval_' + i + '">' + (c.type==='plus'?'+':'−') + fmt(c.amount) + ' €</span>' +
         '</div>';
